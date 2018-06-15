@@ -1,0 +1,2 @@
+  [Errno 2] No such file or directory: 'hpgl0775_forward-trimmed.bam'
+  [Exception type: IOError, raised in count.py:42]
