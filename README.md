@@ -28,3 +28,17 @@ Some RNASeq analyses in yeast!
      using differentially expressed genes according to DESeq2, first experiment.
 **  [E1E2 gprofiler down genes](E1E2/E1E2_gprofiler_down_20180606.xlsx):  gprofiler results
      using differentially expressed genes according to DESeq2, first experiment.
+* Worksheets
+**  [Annotation R markdown](01_annotation-v20180606.Rmd): R worksheet used to
+     gather annotation data for Saccharomyces cerevisiae.
+**  [Annotation html](01_annotation-v20180606.html): html transcript of Ibid.
+**  [Sample estimation markdown](02_sample_estimation_merged-v20180606.Rmd):
+     R worksheet used to examine the raw/normalized data.
+**  [Sample estimation html](02_sample_estimation_merged-v20180606.html): html transcript of Ibid.
+**  [Differential expression markdown](03_differential_expression_merged-v20180606.Rmd):
+     R worksheet used to perform differential expression analyses.
+**  [Differential expression html](03_differential_expression_merged-v20180606.html):
+     html transcript of Ibid.
+**  [gProfileR ontology searches](04_gene_ontology_merged-v20180606.Rmd):
+     R worksheet used to perform ontology searches using gProfileR and goseq.
+**  [Differential expression html](04_gene_ontology_merged-v20180606.html): html transcript of Ibid.

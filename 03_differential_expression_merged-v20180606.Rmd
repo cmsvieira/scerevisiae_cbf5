@@ -1,0 +1,198 @@
+---
+title: "S. cerevisiae 2017: differential expression, merged sample edition (20180606)."
+author: "atb abelew@gmail.com"
+date: "`r Sys.Date()`"
+output:
+ html_document:
+  code_download: true
+  code_folding: show
+  fig_caption: true
+  fig_height: 7
+  fig_width: 7
+  highlight: default
+  keep_md: false
+  mode: selfcontained
+  number_sections: true
+  self_contained: true
+  theme: readable
+  toc: true
+  toc_float:
+    collapsed: false
+    smooth_scroll: false
+---
+
+<style>
+  body .main-container {
+    max-width: 1600px;
+  }
+</style>
+
+```{r options, include=FALSE}
+if (!isTRUE(get0("skip_load"))) {
+  library("hpgltools")
+  tt <- devtools::load_all("~/hpgltools")
+  knitr::opts_knit$set(progress=TRUE,
+                       verbose=TRUE,
+                       width=90,
+                       echo=TRUE)
+  knitr::opts_chunk$set(error=TRUE,
+                        fig.width=8,
+                        fig.height=8,
+                        dpi=96)
+  old_options <- options(digits=4,
+                         stringsAsFactors=FALSE,
+                         knitr.duplicate.label="allow")
+  ggplot2::theme_set(ggplot2::theme_bw(base_size=10))
+  set.seed(1)
+  previous_file <- paste0("02_sample_estimation_merged-v", ver, ".Rmd")
+  ver <- "20180606"
+
+  tmp <- sm(loadme(filename=paste0(gsub(pattern="\\.Rmd", replace="", x=previous_file), "-v", ver, ".rda.xz")))
+  rmd_file <- paste0("03_differential_expression_merged-v", ver, ".Rmd")
+}
+```
+
+# Differential Expression: `r ver`
+
+# Filter the raw data
+
+In sample_estimation, I created sc_filt which is precisely what I want.
+
+# Start with batch in the model
+
+I am going to leave these running without silence as I want to make sure they
+are running without troubles.
+
+## Set up contrasts
+
+I use the variable 'keepers' to define the numerators/denominators of interest
+and give their contrasts names which are appropriate.  I do this because my
+all_pairwise() function performs all possible pairwise comparisons in the
+specific order of: a:b, a:c, a:d, ... b:c, b:d, ..., c:d, ...
+which is not necessarily what is biologically interesting/intuitive.  Thus when
+we specifically set the numerators/denominators here, it will make sure that the
+result of the contrast is in the chosen orientation.
+
+```{r batch_model}
+keepers <- list(
+  "D95A_vs_WT" = c("cbf5_D95A", "WT"),
+  "upf1d_vs_WT" = c("upf1d", "WT"),
+  "double_vs_D95A" = c("cbf5_D95Aupf1d", "cbf5_D95A"),
+  "double_vs_upf1d" = c("cbf5_D95Aupf1d", "upf1d"),
+  "double_vs_wt" = c("cbf5_D95Aupf1d", "WT"))
+```
+
+## Perform search
+
+As I suspect you know, all_pairwise() is the work horse.  It runs
+deseq/edger/limma/basic differential expression searches and attempts to use
+similar/compatible statistical models for each search (except basic which is
+intended as a diagnostic/negative control).
+
+combine_de_tables() does most of the work.  It takes the data from
+all_pairwise(), combines them, and writes them out.
+
+I should add some more pictures here.
+
+```{r perform_de}
+fsva <- sm(all_pairwise(input=merged_filt, model_batch="fsva", parallel=FALSE))
+
+fsva_write <- combine_de_tables(
+  all_pairwise_result=fsva, keepers=keepers,
+  excel=paste0("excel/sva_in_model_differential_merged-v", ver, ".xlsx"),
+  sig_excel=paste0("excel/sva_in_model_significant-v", ver, ".xlsx"),
+  abundant_excel=paste0("excel/sva_in_model_abundance-v", ver, ".xlsx"))
+strict_sig_write <- sm(extract_significant_genes(
+  fsva_write, lfc=2,
+  excel=paste0("excel/sva_in_model_sig2lfc-v", ver, ".xlsx")))
+
+new_colors <- c("#008000", "#4CA64C", "#7FBF7F", "#FF0000", "#FF4C4C", "#FF9999")
+new_bars <- significant_barplots(fsva_write, color_list=new_colors)
+
+cbf5_de_plots <- extract_de_plots(fsva_write, type="deseq", table="cbf5_D95A_vs_WT")
+pp(file="illustrator_input/21_cbf5_deseq_ma.pdf", image=cbf5_de_plots$ma$plot)
+pp(file="illustrator_input/22_cbf5_deseq_vol.pdf", image=cbf5_de_plots$volcano$plot)
+pp(file="illustrator_input/23_redgreen_sigbars.pdf", image=new_bars$deseq)
+```
+
+## Repeat pairwise searches without the batch 'r'
+
+```{r nor}
+merged_nor <- subset_expt(merged_filt, subset="batch!='E2B1'")
+fsva_nor <- sm(all_pairwise(input=merged_nor, model_batch="fsva", parallel=FALSE))
+
+fsva_nor_write <- sm(combine_de_tables(
+  all_pairwise_result=fsva_nor, keepers=keepers,
+  excel=paste0("excel/nor_sva_in_model_differential_merged-v", ver, ".xlsx"),
+  abundant_excel=paste0("excel/nor_sva_in_model_abundance-v", ver, ".xlsx"),
+  sig_excel=paste0("excel/nor_sva_in_model_significant-v", ver, ".xlsx")))
+fsva_nor_sig <- fsva_nor_write[["significant"]]
+strict_fsva_nor_write <- sm(extract_significant_genes(
+  fsva_nor_write, lfc=2,
+  excel=paste0("excel/nor_sva_in_model_sig2lfc-v", ver, ".xlsx")))
+
+new_colors <- c("#008000", "#4CA64C", "#7FBF7F", "#FF0000", "#FF4C4C", "#FF9999")
+new_bars <- significant_barplots(fsva_nor_write, color_list=new_colors)
+
+norcbf5_de_plots <- extract_de_plots(fsva_nor_write, type="deseq", table="cbf5_D95A_vs_WT")
+pp(file="illustrator_input/24_norcbf5_deseq_ma.pdf", image=norcbf5_de_plots$ma$plot)
+pp(file="illustrator_input/25_norcbf5_deseq_vol.pdf", image=norcbf5_de_plots$volcano$plot)
+pp(file="illustrator_input/26_norredgreen_sigbars.pdf", image=new_bars$deseq)
+
+pp(file="illustrator_input/27_nor_agreement.pdf", image=fsva_nor$comparison$heat)
+```
+
+```{r compare_v1_merged, eval=FALSE, include=FALSE}
+v1_env <- new.env()
+old_ver <- "20170515"
+load(paste0("../scerevisiae_cbf5v1/savefiles/differential_expression-v", old_ver, ".rda.xz"),
+     envir=v1_env)
+v1_de <- v1_env$batch_write$data$mtc_vs_wtc
+##v1_de <- nobatch_write$data$wtc_wtu_vs_mtc_wtu
+##rm(list=c("v1_env"))
+
+merged_de <- fsva$deseq$all_tables$wtc_wtu_vs_mtc_wtu
+merged_de$logFC <- merged_de$logFC * -1.0
+v1v2_merged <- merge(v1_de, merged_de, by="row.names")
+v1v2_merged <- v1v2_merged[, c("deseq_logfc", "logFC")]
+v1v2_scatter <- plot_linear_scatter(df=v1v2_merged, loess=TRUE)
+v1v2_scatter$scatter
+v1v2_scatter$correlation
+cor.test(v1v2_merged[, 1], v1v2_merged[, 2], method="spearman")
+## Well at least the direction is correct...
+```
+
+```{r compare_v1_nor, eval=FALSE, include=FALSE}
+merged_nor_de <- fsva_nor$deseq$all_tables$wtc_wtu_vs_mtc_wtu
+merged_nor_de$logFC <- merged_nor_de$logFC * -1.0
+v1v2nor_merged <- merge(v1_de, merged_nor_de, by="row.names")
+v1v2nor_merged <- v1v2nor_merged[, c("deseq_logfc", "logFC")]
+v1v2nor_scatter <- plot_linear_scatter(df=v1v2nor_merged, loess=TRUE)
+v1v2nor_scatter$scatter
+v1v2nor_scatter$correlation
+cor.test(v1v2_merged[, 1], v1v2_merged[, 2])
+## Well at least the direction is correct...
+```
+
+# 20180606 Only old data
+
+We want to use our 'only_old' experiment to look at some DE of only experiment 1.
+
+```{r de_expt1}
+old_data <- write_expt(only_old, violin=FALSE, batch=FALSE,
+                       excel=paste0("excel/only_old_written-v", ver, ".xlsx"))
+old_filt <- sm(normalize_expt(only_old, filter=TRUE))
+keepers <- list("cbf5_vs_wt" = c("cbf5_D95A", "WT"))
+old_de <- sm(all_pairwise(old_filt, model_batch=FALSE, keepers=keepers,
+                          combined_excel=paste0("excel/only_old_de-v", ver, ".xlsx"),
+                          sig_excel=paste0("excel/only_old_sig-v", ver, ".xlsx")))
+```
+
+```{r saveme, include=FALSE}
+if (!isTRUE(get0("skip_load"))) {
+  pander::pander(sessionInfo())
+  message(paste0("This is hpgltools commit: ", get_git_commit()))
+  this_save <- paste0(gsub(pattern="\\.Rmd", replace="", x=rmd_file), "-v", ver, ".rda.xz")
+  tmp <- sm(saveme(filename=this_save))
+}
+```
