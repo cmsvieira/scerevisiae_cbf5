@@ -42,8 +42,6 @@ if (!isTRUE(get0("skip_load"))) {
   old_options <- options(digits=4,
                          stringsAsFactors=FALSE,
                          knitr.duplicate.label="allow")
-  ##ggplot2::theme_set(ggplot2::theme_bw(base_size=10))
-  set.seed(1)
   ver <- "20180606"
   previous_file <- paste0("01_annotation-v", ver, ".Rmd")
 
@@ -70,18 +68,24 @@ one the various subsets.
 In response to some ideas around 20180606, we will extract all the samples which
 are wt/cbf5 and not excessively batch-ridden (eg. some of our wt samples)
 
+* all_expt: All samples bundled into one experiment.
+* E1_expt: Only the samples from the first experiment.
+* E2_expt: Only the smaples from the second experiment.
+* E1E2B1_expt: The first experiment and the first batch of the second experiment.
+* E1E2B2_expt: The first experiment and the second batch of the second experiment.
+* E1E2B2_cbf5wt: Ibid, but only the samples which compare the D95A and wt samples for the CBF5 gene.
 
 ```{r gather_all}
-merged_expt <- sm(create_expt(metadata="sample_sheets/all_samples.xlsx",
+all_expt <- sm(create_expt(metadata="sample_sheets/all_samples.xlsx",
                               gene_info=sc_all_annotations,
                               file_column="allfile"))
 ## Don't forget, I need to change the condition names.
-only_old <- subset_expt(merged_expt, subset="batch=='E1'")
-merged_new <- subset_expt(merged_expt, subset="batch!='E1'")
-merged_nor <- subset_expt(merged_expt, subset="batch!='E2B1'")
-merged_nos <- subset_expt(merged_expt, subset="batch!='E2B2'")
+E1_expt <- subset_expt(all_expt, subset="batch=='E1'")
+E2_expt <- subset_expt(all_expt, subset="batch!='E1'")
+E1E2B2_expt <- subset_expt(all_expt, subset="batch!='E2B1'")
+E1E2B1_expt <- subset_expt(all_expt, subset="batch!='E2B2'")
 
-cbf5_expt <- subset_expt(merged_nor, subset="condition=='WT'|condition=='cbf5_D95A'")
+E1E2B2_cbf5wt <- subset_expt(E1E2B2_expt, subset="condition=='WT'|condition=='cbf5_D95A'")
 ```
 
 # Visualizing raw data
@@ -106,21 +110,25 @@ are poorly represented before/after filtering the data.
 The plots printed here are all metrics which are useful when considering raw
 data.
 
-```{r raw_explore}
-merged_filt <- sm(normalize_expt(merged_expt, filter=TRUE))
-merged_metrics <- sm(graph_metrics(merged_expt))
+```{r raw_explore, fig.show="hide"}
+all_filt <- sm(normalize_expt(all_expt, filter=TRUE))
+all_metrics <- sm(graph_metrics(all_expt))
+```
 
-pp(file="illustrator_input/01_legend.pdf", image=merged_metrics$legend)
-pp(file="illustrator_input/02_raw_libsize.pdf", image=merged_metrics$libsize)
+Now print some plots of interest of the raw data.
 
-prepost <- plot_libsize_prepost(merged_expt)
+```{r raw_show}
+pp(file="illustrator_input/01_legend.pdf", image=all_metrics$legend)
+pp(file="illustrator_input/02_raw_libsize.pdf", image=all_metrics$libsize)
+
+prepost <- plot_libsize_prepost(all_expt)
 pp(file="illustrator_input/03_libsize_changed_lowgenes.pdf", image=prepost$lowgene_plot)
 
-pp(file="illustrator_input/04_nonzero_genes.pdf", image=merged_metrics$nonzero)
-pp(file="illustrator_input/05_raw_boxplot.pdf", image=merged_metrics$boxplot)
-pp(file="illustrator_input/06_raw_density.pdf", image=merged_metrics$density)
-pp(file="illustrator_input/07_raw_boxplot.pdf", image=merged_metrics$boxplot)
-pp(file="illustrator_input/08_topn.pdf", image=merged_metrics$topnplot)
+pp(file="illustrator_input/04_nonzero_genes.pdf", image=all_metrics$nonzero)
+pp(file="illustrator_input/05_raw_boxplot.pdf", image=all_metrics$boxplot)
+pp(file="illustrator_input/06_raw_density.pdf", image=all_metrics$density)
+pp(file="illustrator_input/07_raw_boxplot.pdf", image=all_metrics$boxplot)
+pp(file="illustrator_input/08_topn.pdf", image=all_metrics$topnplot)
 ```
 
 # Normalize and visualize
@@ -129,23 +137,23 @@ Other metrics are more useful when used with data on the log scale and
 normalized by number of reads/library and/or by quantile.
 
 ```{r normalize, fig.show="hide"}
-merged_norm <- normalize_expt(merged_expt, transform="log2", convert="cpm", filter=TRUE)
-merged_metrics <- graph_metrics(merged_norm)
+all_exptm <- normalize_expt(all_expt, transform="log2", convert="cpm", filter=TRUE)
+all_metrics <- graph_metrics(all_exptm)
 ```
 
 The data should now be normalized, lets view some metrics post-facto.
 
 ```{r normviz}
-pp(file="illustrator_input/09_norm_corheat.pdf", image=merged_metrics$corheat)
-pp(file="illustrator_input/10_norm_disheat.pdf", image=merged_metrics$disheat)
+pp(file="illustrator_input/09_norm_corheat.pdf", image=all_metrics$corheat)
+pp(file="illustrator_input/10_norm_disheat.pdf", image=all_metrics$disheat)
 ## It appears that just the normalization is sufficient to split the samples completely by type and deeply separate them from the heterologous samples
 
-pp(file="illustrator_input/11_norm_smc.pdf", image=merged_metrics$smc)
-pp(file="illustrator_input/12_norm_smd.pdf", image=merged_metrics$smd)
+pp(file="illustrator_input/11_norm_smc.pdf", image=all_metrics$smc)
+pp(file="illustrator_input/12_norm_smd.pdf", image=all_metrics$smd)
 ## The samples are very well behaved, none fall below the red line.
 
-pp(file="illustrator_input/13_norm_pca.pdf", image=merged_metrics$pcaplot)
-pp(file="illustrator_input/14_norm_tsne.pdf", image=merged_metrics$tsneplot)
+pp(file="illustrator_input/13_norm_pca.pdf", image=all_metrics$pcaplot)
+pp(file="illustrator_input/14_norm_tsne.pdf", image=all_metrics$tsneplot)
 ## The homogeneous wt/mutant are nicely separated, and what is more, the exogeneous samples also split wt/mutant, that might prove to be quite useful.
 ```
 
@@ -156,24 +164,28 @@ of potential interest.  Let us use the same batch method (fsva).
 
 We will do this for both _only_ the old samples and also for the old+new samples.
 
-```{r cbf5_plots}
-old_norm <- normalize_expt(only_old, filter=TRUE, norm="quant", convert="cpm", transform="log")
+```{r cbf5_plots, fig.show="hide"}
+E1_norm <- normalize_expt(E1_expt, filter=TRUE, norm="quant", convert="cpm", transform="log")
 
-cbf5_norm <- sm(normalize_expt(cbf5_expt, filter=TRUE, norm="quant", convert="cpm",
+cbf5_norm <- sm(normalize_expt(E1E2B2_cbf5wt, filter=TRUE, norm="quant", convert="cpm",
                                transform="log"))
-cbf5_batch <- sm(normalize_expt(cbf5_expt, filter=TRUE, norm="quant", convert="cpm",
+cbf5_batch <- sm(normalize_expt(E1E2B2_cbf5wt, filter=TRUE, norm="quant", convert="cpm",
                                 transform="log", batch="fsva"))
 
-old_raw_metrics <- sm(graph_metrics(only_old))
-old_norm_metrics <- sm(graph_metrics(old_norm))
+E1_raw_metrics <- sm(graph_metrics(E1_expt))
+E1_norm_metrics <- sm(graph_metrics(E1_norm))
 
-cbf5_raw_metrics <- sm(graph_metrics(cbf5_expt))
+cbf5_raw_metrics <- sm(graph_metrics(E1E2B2_cbf5wt))
 cbf5_norm_metrics <- sm(graph_metrics(cbf5_norm))
 cbf5_batch_metrics <- sm(graph_metrics(cbf5_batch))
+```
 
-pp(file="illustrator_input/32_old_norm_corheat.pdf", image=old_norm_metrics$corheat)
-pp(file="illustrator_input/33_old_norm_pca.pdf", image=old_norm_metrics$pcaplot)
-pp(file="illustrator_input/34_old_norm_disheat.pdf", image=old_norm_metrics$disheat)
+Now print out some of the interesting plots.
+
+```{r cbf5_show_plots}
+pp(file="illustrator_input/32_E1_norm_corheat.pdf", image=E1_norm_metrics$corheat)
+pp(file="illustrator_input/33_E1_norm_pca.pdf", image=E1_norm_metrics$pcaplot)
+pp(file="illustrator_input/34_E1_norm_disheat.pdf", image=E1_norm_metrics$disheat)
 ```
 
 ## Print some variance partition information
@@ -187,12 +199,12 @@ variance which is actually correlated with condition.
 Since writing these analyses, I implemented this idea and so am including it here.
 
 ```{r variance_partitions}
-vp <- varpart(merged_expt, predictor=NULL, factors=c("condition", "batch"))
+vp <- varpart(all_expt, predictor=NULL, factors=c("condition", "batch"))
 pp(file="illustrator_input/15_merged_varpart_partition.pdf", image=vp$partition_plot)
 ## Check out the last two columns!
 head(fData(vp$modified_expt))
 
-merged_sva <- sm(normalize_expt(merged_expt, transform="log2",
+merged_sva <- sm(normalize_expt(all_expt, transform="log2",
                                 filter=TRUE, batch="sva", low_to_zero=TRUE))
 vpsva <- varpart(merged_sva, predictor=NULL, factors=c("condition", "batch"))
 pp(file="illustrator_input/16_merged_varpart_sva_partition.pdf", image=vpsva$partition_plot)
@@ -202,121 +214,37 @@ head(fData(vpsva$modified_expt))
 # Now look at the data without batch 'E2B1'
 
 ```{r nor, fig.show="hide"}
-nor_norm <- sm(normalize_expt(merged_nor, transform="log2", convert="cpm", norm="quant", filter=TRUE))
-nor_plots <- sm(graph_metrics(nor_norm))
-nor_batchnorm <- sm(normalize_expt(merged_nor, transform="log2", convert="cpm", norm="quant", filter=TRUE,
-                                batch="fsva"))
-nor_batchplots <- sm(graph_metrics(nor_batchnorm))
+E1E2B2_norm <- sm(normalize_expt(E1E2B2_expt, transform="log2", convert="cpm", norm="quant", filter=TRUE))
+E1E2B2_plots <- sm(graph_metrics(E1E2B2_norm))
+E1E2B2_batchnorm <- sm(normalize_expt(E1E2B2_expt, transform="log2", convert="cpm", norm="quant", filter=TRUE,
+                                      batch="fsva"))
+E1E2B2_batchplots <- sm(graph_metrics(E1E2B2_batchnorm))
 ```
 
 ## Print the smaller set of data
 
-```{r nor_show}
+```{r E1E2B2_show}
 ## Before fsva, correlation heatmap without 'r'
-pp(file="illustrator_input/17_nor_corheat.pdf", image=nor_plots$corheat)
+pp(file="illustrator_input/17_E1E2B2_corheat.pdf", image=E1E2B2_plots$corheat)
 ## Before fsva, pca without 'r'
-pp(file="illustrator_input/18_nor_pca.pdf", image=nor_plots$pcaplot)
+pp(file="illustrator_input/18_E1E2B2_pca.pdf", image=E1E2B2_plots$pcaplot)
 ## After fsva, correlation heatmap without 'r'
-pp(file="illustrator_input/19_nor_fsva_corheat.pdf", image=nor_batchplots$corheat)
+pp(file="illustrator_input/19_E1E2B2_fsva_corheat.pdf", image=E1E2B2_batchplots$corheat)
 ## After fsva, pca without 'r'
-pp(file="illustrator_input/20_nor_fsva_pca.pdf", image=nor_batchplots$pcaplot)
-```
-
-# Try many batch estimation methods to see what is up.
-
-I do not think any of this information is currently being used, so I am going to
-stop running it for the moment but keep it here in case we decide to revive it.
-
-```{r batch_exo, fig.show=FALSE}
-merged_pcabatch <- sm(normalize_expt(merged_expt, transform="log2",
-                                filter=TRUE, batch="pca", low_to_zero=TRUE))
-merged_pcabatch_metrics <- sm(graph_metrics(merged_pcabatch))
-
-merged_nor_pcabatch <- sm(normalize_expt(merged_nor, transform="log2",
-                                filter=TRUE, batch="pca", low_to_zero=TRUE))
-merged_nor_pcabatch_metrics <- sm(graph_metrics(merged_nor_pcabatch))
-
-merged_nos_pcabatch <- sm(normalize_expt(merged_nos, transform="log2",
-                                filter=TRUE, batch="pca", low_to_zero=TRUE))
-merged_nos_pcabatch_metrics <- sm(graph_metrics(merged_nos_pcabatch))
-
-merged_sva <- sm(normalize_expt(merged_expt, transform="log2",
-                                filter=TRUE, batch="sva", low_to_zero=TRUE))
-merged_sva_metrics <- sm(graph_metrics(merged_sva))
-
-merged_nor_sva <- sm(normalize_expt(merged_nor, transform="log2",
-                                filter=TRUE, batch="sva", low_to_zero=TRUE))
-merged_nor_sva_metrics <- sm(graph_metrics(merged_nor_sva))
-
-merged_nos_sva <- sm(normalize_expt(merged_nos, transform="log2",
-                                filter=TRUE, batch="sva", low_to_zero=TRUE))
-merged_nos_sva_metrics <- sm(graph_metrics(merged_nos_sva))
-
-merged_combat <- sm(normalize_expt(merged_expt, transform="log2",
-                                   filter=TRUE, batch="combat_scale", low_to_zero=TRUE))
-merged_combat_metrics <- sm(graph_metrics(merged_combat))
-
-merged_nor_combat <- sm(normalize_expt(merged_nor, transform="log2",
-                                   filter=TRUE, batch="combat_scale", low_to_zero=TRUE))
-merged_nor_combat_metrics <- sm(graph_metrics(merged_nor_combat))
-
-merged_nos_combat <- sm(normalize_expt(merged_nos, transform="log2",
-                                   filter=TRUE, batch="combat_scale", low_to_zero=TRUE))
-merged_nos_combat_metrics <- sm(graph_metrics(merged_nos_combat))
-
-merged_limma <- sm(normalize_expt(merged_expt, transform="log2",
-                                   filter=TRUE, batch="limmaresid", low_to_zero=TRUE))
-merged_limma_metrics <- sm(graph_metrics(merged_limma))
-
-merged_nor_limma <- sm(normalize_expt(merged_nor, transform="log2",
-                                   filter=TRUE, batch="limmaresid", low_to_zero=TRUE))
-merged_nor_limma_metrics <- sm(graph_metrics(merged_nor_limma))
-
-merged_nos_limma <- sm(normalize_expt(merged_nos, transform="log2",
-                                   filter=TRUE, batch="limmaresid", low_to_zero=TRUE))
-merged_nos_limma_metrics <- sm(graph_metrics(merged_nos_limma))
-
-merged_fsva <- sm(normalize_expt(merged_expt, transform="log2",
-                              filter=TRUE, batch="fsva", low_to_zero=TRUE))
-merged_fsva_metrics <- sm(graph_metrics(merged_fsva))
-
-merged_nor_fsva <- sm(normalize_expt(merged_nor, transform="log2",
-                              filter=TRUE, batch="fsva", low_to_zero=TRUE))
-merged_nor_fsva_metrics <- sm(graph_metrics(merged_nor_fsva))
-
-merged_nos_fsva <- sm(normalize_expt(merged_nos, transform="log2",
-                              filter=TRUE, batch="ssva", low_to_zero=TRUE))
-merged_nos_fsva_metrics <- sm(graph_metrics(merged_nos_fsva))
-```
-
-### The resulting plots
-
-Why is is suddenly printing stuff now and not before?
-
-```{r batch_estimation_plots}
-merged_pcabatch_metrics$pcaplot
-merged_nor_pcabatch_metrics$pcaplot
-merged_nos_pcabatch_metrics$pcaplot
-merged_sva_metrics$pcaplot
-merged_nor_sva_metrics$pcaplot
-merged_nos_sva_metrics$pcaplot
-merged_combat_metrics$pcaplot
-merged_nor_combat_metrics$pcaplot
-merged_nos_combat_metrics$pcaplot
-merged_limma_metrics$pcaplot
-merged_nor_limma_metrics$pcaplot
-merged_nos_limma_metrics$pcaplot
-merged_fsva_metrics$pcaplot
-merged_nor_fsva_metrics$pcaplot
-merged_nos_fsva_metrics$pcaplot
+pp(file="illustrator_input/20_E1E2B2_fsva_pca.pdf", image=E1E2B2_batchplots$pcaplot)
 ```
 
 # Write the expt
 
-```{r fsva_written}
+```{r fsva_written, fig.show='hide'}
 ## hmm I was going to silence this line, but looking at the report it seems to be missing some pictures.
-fun_nor <- write_expt(merged_nor, excel=paste0("excel/samples_written_merged_nor-v", ver, ".xlsx"),
-                      filter=TRUE, norm="raw", convert="cpm", batch="fsva", transform="log2")
+all_written <- write_expt(all_expt, excel=paste0("excel/samples_written_all_expt-v", ver, ".xlsx"),
+                          filter=TRUE, norm="raw", convert="cpm", batch="fsva", transform="log2")
+E1_written <- write_expt(all_expt, excel=paste0("excel/samples_written_E1_expt-v", ver, ".xlsx"),
+                         filter=TRUE, norm="raw", convert="cpm", transform="log2")
+E1E2B2_written <- write_expt(E1E2B2_expt, excel=paste0("excel/samples_written_E1E2B2_expt-v", ver, ".xlsx"),
+                             filter=TRUE, norm="raw", convert="cpm", batch="fsva", transform="log2")
+
 ```
 
 ```{r saveme, include=FALSE}
