@@ -1,0 +1,254 @@
+---
+title: "Ontology searches using S. cerevisiae cbf5/upf/wt genes (20180606)."
+author: "atb abelew@gmail.com"
+date: "`r Sys.Date()`"
+output:
+ html_document:
+  code_download: true
+  code_folding: show
+  fig_caption: true
+  fig_height: 7
+  fig_width: 7
+  highlight: default
+  keep_md: false
+  mode: selfcontained
+  number_sections: true
+  self_contained: true
+  theme: readable
+  toc: true
+  toc_float:
+    collapsed: false
+    smooth_scroll: false
+---
+
+<style>
+  body .main-container {
+    max-width: 1600px;
+  }
+</style>
+
+```{r options, include=FALSE}
+if (!isTRUE(get0("skip_load"))) {
+  library("hpgltools")
+  tt <- devtools::load_all("~/hpgltools")
+  knitr::opts_knit$set(progress=TRUE,
+                       verbose=TRUE,
+                       width=90,
+                       echo=TRUE)
+  knitr::opts_chunk$set(error=TRUE,
+                        fig.width=8,
+                        fig.height=8,
+                        dpi=96)
+  old_options <- options(digits=4,
+                         stringsAsFactors=FALSE,
+                         knitr.duplicate.label="allow")
+  ggplot2::theme_set(ggplot2::theme_bw(base_size=10))
+  set.seed(1)
+  ver <- "20180606"
+  previous_file <- paste0("03_differential_expression_merged-v", ver, ".Rmd")
+
+  tmp <- try(sm(loadme(filename=paste0(gsub(pattern="\\.Rmd", replace="", x=previous_file), "-v", ver, ".rda.xz"))))
+  rmd_file <- paste0("04_gene_ontology_merged-v", ver, ".Rmd")
+}
+```
+
+# Sample Estimation version: `r ver`
+
+Ontology searches with RNA sequencing data of Saccharomyces cerevisiae wt/mutant cbf5.
+======================================================================================
+
+This document will pull together the various annotations and results from the differential
+expression analyses and attempt to use them for gene ontology searches.
+
+# Ontology searching is weird
+
+Sadly, the authors of the various ontology tools I use
+(goseq/clusterprofiler/topgo/gostats/gprofiler) keep changing the input requirements and make it
+hard for me to keep up.  Lets see how well I did.
+
+## Set up some other data sets, 1/2 fold and 4 fold.
+
+```{r onehalf_four}
+## The strict subset was generated in 03 merged.
+summary(strict_fsva_nor_write)
+## I didn't make a 1.5 fold set yet, make it now.
+fsva_nor_onehalf_sig <- sm(extract_significant_genes(
+  combined=fsva_nor_write, lfc=0.585,
+  excel=paste0("excel/nor_sva_in_model_onehalf_significant_merged-v", ver, ".xlsx")))
+```
+
+## Searching with gprofiler
+
+g:ProfileR is a web-services which handles a large variety of
+ontology/enrichment searches for a limited set of species, including
+S.cerevisiae.  It is probably my favorite because of its simplicity and
+inclusive set of searches.
+
+```{r gprofiler}
+## I was getting weird errors:
+## "external pointer is not valid", so I am reloading the txdb here.
+please_install("TxDb.Scerevisiae.UCSC.sacCer3.sgdGene")
+tmp <- sm(library(TxDb.Scerevisiae.UCSC.sacCer3.sgdGene))
+sc_txdb <- TxDb.Scerevisiae.UCSC.sacCer3.sgdGene
+
+nor_twofold_merged_up <- fsva_nor_sig$deseq$ups[[1]]
+nor_twofold_merged_down <- fsva_nor_sig$deseq$downs[[1]]
+
+nor_two_gprofiler_written <- sm(sig_ontologies(
+  significant_result=fsva_nor_sig, search_by="deseq",
+  excel_prefix="excel/ontology_nor_two", excel_suffix=paste0("-v", ver, ".xlsx"),
+  type="gprofiler", species="scerevisiae"))
+
+## I think these are duplicates of the above search.
+## yeah, why did I do that?
+##nor_twoup_gprofiler <- sm(simple_gprofiler(
+##  sig_genes=nor_twofold_merged_up, species="scerevisiae",
+##  excel=paste0("excel/nor_twoup_gprofiler-v", ver, ".xlsx")))
+##nor_twodown_gprofiler <- sm(simple_gprofiler(
+##  sig_genes=nor_twofold_merged_down, species="scerevisiae",
+##  excel=paste0("excel/nor_twodown_gprofiler-v", ver, ".xlsx")))
+##nor_two_written <- sm(sig_ontologies(
+##  significant_result=fsva_nor_sig, search_by="deseq",
+##  excel_prefix="excel/ontology_two", excel_suffix=paste0("v", ver),
+##  type="gprofiler", species="scerevisiae"))
+
+pp(file="illustrator_input/28_gprofiler_upbars_mf.pdf",
+   image=nor_two_gprofiler_written[["ups"]][["cbf5_D95A_vs_WT"]][["pvalue_plots"]][["mfp_plot_over"]])
+pp(file="illustrator_input/29_gprofiler_upbars_bp.pdf",
+   image=nor_two_gprofiler_written[["ups"]][["cbf5_D95A_vs_WT"]][["pvalue_plots"]][["bpp_plot_over"]])
+pp(file="illustrator_input/30_gprofiler_upbars_kegg.pdf",
+   image=nor_two_gprofiler_written[["ups"]][["cbf5_D95A_vs_WT"]][["pvalue_plots"]][["kegg_plot_over"]])
+pp(file="illustrator_input/31_gprofiler_downbars_kegg.pdf",
+   image=nor_two_gprofiler_written[["downs"]][["cbf5_D95A_vs_WT"]][["pvalue_plots"]][["kegg_plot_over"]])
+```
+
+### Repeat using a more/less restrictive set of genes
+
+Let us repeat the ontology searches using a more restrictive fold-change
+(2^0.6 -> 1.516), so basically 1.5 fold.  Perhaps I should change it to 0.585,
+hmm yeah I guess so, ok now it is exactly 1.5 fold.
+
+#### Less strict first
+
+Do the 1.5 fold cutoff first.
+
+```{r gprofiler_onehalf}
+nor_onehalf_merged_up <- fsva_nor_onehalf_sig$limma$ups[[1]]
+nor_onehalf_merged_down <- fsva_nor_onehalf_sig$limma$downs[[1]]
+
+nor_onehalf_written <- sm(sig_ontologies(
+  significant_result=fsva_nor_onehalf_sig, search_by="deseq",
+  excel_prefix="excel/ontology_nor_onehalf", excel_suffix=paste0("-v", ver, ".xlsx"),
+  type="gprofiler", species="scerevisiae"))
+```
+
+#### 4 fold cutoff
+
+```{r fourfold}
+nor_four_written_gprofiler <- sm(sig_ontologies(
+  significant_result=strict_fsva_nor_write, search_by="deseq",
+  excel_prefix="excel/ontology_nor_four", excel_suffix=paste0("-v", ver, ".xlsx"),
+  type="gprofiler", species="scerevisiae"))
+```
+
+## Searching with goseq
+
+goseq is one of the most commonly used ontology search tools in R.  It makes
+some interesting statements about the over-representation of longer/shorter
+genes in differential expression analyses and therefore performs some
+pre-processing steps to attempt to adjust these (and/or other) systematic
+biases.
+
+Whenever I go back over their paper I find myself thinking I should do some sort
+of similar probability weighting to seek out biases in the differential
+expression results and do a similar plot to describe biases in the
+data/results -- but I have not yet.
+
+```{r goseq}
+nor_twoup_merged_goseq <- sm(simple_goseq(
+  sig_genes=nor_twofold_merged_up, go_db=sc_ontology,
+  length_db=sc_txdb, excel=paste0("excel/nor_twoup_goseq-v", ver, ".xlsx")))
+
+nor_twodown_merged_goseq <- sm(simple_goseq(
+  sig_genes=nor_twofold_merged_down, go_db=sc_ontology,
+  length_db=sc_txdb, excel=paste0("excel/nor_twodown_goseq-v", ver, ".xlsx")))
+
+nor_onehalfup_goseq <- sm(simple_goseq(
+  sig_genes=nor_onehalf_merged_up, go_db=sc_ontology,
+  length_db=sc_txdb, excel=paste0("excel/nor_onehalfup_goseq-v", ver, ".xlsx")))
+
+nor_onehalfdown_goseq <- sm(simple_goseq(
+  sig_genes=nor_onehalf_merged_down, go_db=sc_ontology,
+  length_db=sc_txdb, excel=paste0("excel/nor_onehalfdown_goseq-v", ver, ".xlsx")))
+
+## Ideally, I can choose any ontology tool via sig_ontologies().
+## In practice, the more brittle tools still fail because I haven't worked out
+## all the corner cases yet.
+nor_four_written_goseq <- sm(sig_ontologies(
+  significant_result=strict_fsva_nor_write, search_by="deseq",
+  excel_prefix="excel/ontology_nor_four_goseq", excel_suffix=paste0("-v", ver, ".xlsx"),
+  type="goseq", species="scerevisiae"))
+```
+
+# ontologies of only the old data
+
+In keeping with our rerun of the data only including the old samples, here are
+some ontology searches of only the old data.
+
+```{r ont_old}
+summary(old_de$combined)
+old_sig <- old_de$combined$significant
+
+old_gprofiler <- sig_ontologies(significant_result=old_sig, excel_prefix="excel/old_ontology",
+                                species="scerevisiae",
+                                search_by="deseq", type="gprofiler")
+
+sig_genes <- old_sig$deseq$ups[[1]]
+knitr::kable(head(sig_genes))
+## hmm these gene IDs are not very useful for GO/lengths.
+## all the lengths/ontologies are explicitly the Yxy###z format.
+## and these gene IDs are a mix of formats...
+annot <- fData(old_de$input)
+sig_genes <- merge(sig_genes, annot, by="row.names")
+rownames(sig_genes) <- gsub(pattern=".", replacement="-", fixed=TRUE, x=make.names(sig_genes[["transcriptid"]], unique=TRUE))
+
+old_goseq_up <- simple_goseq(
+  sig_genes=sig_genes, go_db=sc_ontology,
+  length_db=sc_txdb, excel=paste0("excel/old_ontology_up_goseq-v", ver, ".xlsx"))
+```
+
+## Maybe try clusterprofiler for this?
+
+```{r cp_notyet, eval=FALSE}
+tmp <- sm(library(AnnotationHub))
+ah = sm(AnnotationHub())
+orgdbs <- sm(query(ah, "OrgDb"))
+sc_orgdb <- sm(query(ah, c("OrgDB", "Saccharomyces"))) 4##   AH49589 | org.Sc.sgd.db.sqlite
+sc_orgdb <- ah[["AH49589"]]
+
+nor_onehalfup_cp <- simple_clusterprofiler(sig_genes=nor_onehalf_merged_up,
+                                           orgdb=sc_orgdb,
+                                           excel=paste0("excel/nor_onehalfup_cp-v", ver, ".xlsx"))
+nor_onehalfdown_cp <- simple_clusterprofiler(sig_genes=nor_onehalf_merged_down,
+                                             orgdb=sc_orgdb,
+                                             excel=paste0("excel/nor_onehalfup_cp-v", ver, ".xlsx"))
+```
+
+It has been quite a while since last I used KEGG in an efficient fashion, lets see what happens!
+
+```{r kegg, eval=FALSE}
+try_species <- kegg_get_orgn("Saccharomyces cerevisiae")
+pathview_data <- batch_write$data[[1]]
+rownames(pathview_data) <- make.names(pathview_data$transcriptid, unique=TRUE)
+## If I read the yeast xml files correctly, they all follow the traditional chromosomal location naming scheme...
+pathview_result <- simple_pathview(pathview_data, species=try_species)
+```
+
+```{r saveme, include=FALSE}
+if (!isTRUE(get0("skip_load"))) {
+  pander::pander(sessionInfo())
+  message(paste0("This is hpgltools commit: ", get_git_commit()))
+  this_save <- paste0(gsub(pattern="\\.Rmd", replace="", x=rmd_file), "-v", ver, ".rda.xz")
+  tmp <- sm(saveme(filename=this_save))
+}
+```
