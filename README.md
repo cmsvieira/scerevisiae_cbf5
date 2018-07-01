@@ -25,9 +25,9 @@ Some RNASeq analyses in yeast!
     * [E1E2 significant by DESeq2](E1E2/E1E2_sig_20180212.xlsx):  Significantly
        differentially expressed genes according to DESeq2, both experiments.
     * [E1E2 gprofiler up genes](E1E2/E1E2_gprofiler_up_20180606.xlsx):  gprofiler results
-       using differentially expressed genes according to DESeq2, first experiment.
+       using differentially expressed genes according to DESeq2, both experiments.
     * [E1E2 gprofiler down genes](E1E2/E1E2_gprofiler_down_20180606.xlsx):  gprofiler results
-       using differentially expressed genes according to DESeq2, first experiment.
+       using differentially expressed genes according to DESeq2, both experiments.
 * Worksheets
     * [Annotation R markdown](01_annotation-v20180606.Rmd): R worksheet used to
        gather annotation data for Saccharomyces cerevisiae.
